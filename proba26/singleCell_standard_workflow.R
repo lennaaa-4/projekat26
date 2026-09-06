@@ -44,7 +44,7 @@ nsclc.seurat.obj <- NormalizeData(nsclc.seurat.obj)
 str(nsclc.seurat.obj)
 
 
-# 4. Identify highly variable features --------------
+# 4. Identify highly variable features
 nsclc.seurat.obj <- FindVariableFeatures(nsclc.seurat.obj, selection.method = "vst", nfeatures = 2000)
 
 # Identify the 10 most highly variable genes
