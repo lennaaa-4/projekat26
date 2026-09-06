@@ -33,7 +33,7 @@ VlnPlot(nsclc.seurat.obj, features = c("nFeature_RNA", "nCount_RNA", "percent.mt
 FeatureScatter(nsclc.seurat.obj, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") +
   geom_smooth(method = 'lm')
 
-# 2. Filtering -----------------
+# 2. Filtering -----------------git 
 nsclc.seurat.obj <- subset(nsclc.seurat.obj, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & 
                           percent.mt < 5)
 
