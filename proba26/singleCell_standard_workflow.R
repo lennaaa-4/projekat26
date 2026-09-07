@@ -52,7 +52,7 @@ top10 <- head(VariableFeatures(nsclc.seurat.obj), 10)
 
 # plot variable features with and without labelsplot3
 plot1 <- VariableFeaturePlot(nsclc.seurat.obj)
-LabelPoints(plot = plot1, points = top10, repel = TRUE)
+LabelPoints(plot = plot1, points = c("LINC00958", top10), repel = TRUE)
 
 
 # 5. Scaling -------------
