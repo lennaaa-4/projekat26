@@ -45,12 +45,12 @@ str(nsclc.seurat.obj)
 
 
 # 4. Identify highly variable features
-nsclc.seurat.obj <- FindVariableFeatures(nsclc.seurat.obj, selection.method = "vst", nfeatures = 2000)
+nsclc.seurat.obj <- FindVariableFeatures(nsclc.seurat.obj, selection.method = "vst", nfeatures = 5000)
 
 # Identify the 10 most highly variable genes
 top10 <- head(VariableFeatures(nsclc.seurat.obj), 10)
 
-# plot variable features with and without labels
+# plot variable features with and without labelsplot3
 plot1 <- VariableFeaturePlot(nsclc.seurat.obj)
 LabelPoints(plot = plot1, points = top10, repel = TRUE)
 
