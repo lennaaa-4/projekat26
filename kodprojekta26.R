@@ -37,7 +37,7 @@ Loadings(seurat_obj[["pca"]])["LINC00958", ] #izvrsena PCA analiza, urađen DimH
 
 seurat_obj <- FindNeighbors(seurat_obj, dims = 1:10)
 seurat_obj <- FindClusters(seurat_obj, resolution = c(0.1,0.3, 0.5, 0.7, 1))
-View(seurat_obj@meta.data) # trazenje sličnih ćelija i klasterovanje
+View(seurat_obj@meta.data) # klasterovanje
 library(plotly)
 pca <- Embeddings(seurat_obj, reduction = "pca")[, 1:3]
 plot_ly(
@@ -79,7 +79,7 @@ plot_ly(
       zaxis = list(title = "PC3")
     )
   )
-### 3d prikaz 2. deo (isto kao i prethodno)
+ ### 3d prikaz 2. deo (isto kao i prethodno)
 
 library(ggplot2)
 library(grid)
@@ -212,7 +212,7 @@ Idents(seurat_obj) <- "RNA_snn_res.0.1"
 table(Idents(seurat_obj))
 
 unique(seurat_obj$RNA_snn_res.0.1)
-### 
+
 
 # Sve clustering kolone u objektu
 grep("snn_res", colnames(seurat_obj@meta.data), value = TRUE)
