@@ -247,3 +247,90 @@ reticulate::py_install(packages ='umap-learn')
 seurat_obj <- RunUMAP(seurat_obj, dims = 1:10)
 DimPlot(seurat_obj, reduction = "umap", label = TRUE)
 # UMAP analiza i vizualizacija UMAP DimPlota
+
+
+### II PSEUDOBULK
+
+
+library(Seurat)
+library(DESeq2)
+library(tidyverse)
+
+cell_plot <- DimPlot(seurat_obj, reduction = 'umap', group.by = 'cell_type', label = TRUE)
+cond_plot <- DimPlot(seurat_obj, reduction = 'umap', group.by = 'pathology')
+cell_plot|cond_plot # vizualizacija 
+
+seurat_obj$samples <- paste0(seurat_obj$pathology, "_", seurat_obj$NBB_case)
+DefaultAssay(seurat_obj)
+cts <- AggregateExpression(seurat_obj, 
+                           group.by = c("cell_type", "samples"),
+                           assays = 'RNA',
+                           slot = "counts",
+                           return.seurat = FALSE)
+
+cts <- cts$RNA
+
+cts.t <- t(cts)
+cts.t <- as.data.frame(cts.t)
+splitRows <- gsub('_.*', '', rownames(cts.t))
+cts.split <- split.data.frame(cts.t,
+                              f = factor(splitRows))
+cts.split.modified <- lapply(cts.split, function(x){
+  rownames(x) <- gsub('.*_(.*)', '\\1', rownames(x))
+  t(x)
+  
+})
+
+counts_astrocytes <- cts.split.modified$astrocytes
+dim(counts_astrocytes)
+View(counts_astrocytes)
+
+colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
+colData <- colData %>%
+  mutate(
+    condition = case_when(
+      grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
+      grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  column_to_rownames(var = "samples")
+keep <- !is.na(colData$condition)
+colData <- colData[keep, ]
+counts_astrocytes <- counts_astrocytes[, rownames(colData)]
+dim(counts_astrocytes)
+colData <- colData[!is.na(colData$condition), , drop = FALSE]
+nrow(colData)
+counts_astrocytes <- counts_astrocytes[, rownames(colData), drop = FALSE]
+dim(counts_astrocytes)
+View(colData)
+View(counts_astrocytes)
+
+# III DESeq2
+table(colData$condition)
+library(DESeq2)
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_astrocytes,
+  colData = colData,
+  design = ~ condition
+)
+keep <- rowSums(counts(dds) > 0) >= ceiling(0.20 * ncol(dds))
+dds <- dds[keep, ]
+nrow(dds)
+dds <- DESeq(dds)
+res <- results(
+  dds,
+  name = "condition_periplaque_vs_chronic_active"
+)
+res_sig <- res[
+  !is.na(res$padj) &
+    res$padj < 0.05 &
+    abs(res$log2FoldChange) > 1,
+]
+head(res_sig)
+res_sig["LINC00958",]
+res_mn["LINC00958",]
+res_sig_df <- as.data.frame(res_sig)
+res_sig_df <- as.data.frame(res_sig)
+View(res_sig_df)
+
