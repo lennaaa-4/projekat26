@@ -604,3 +604,62 @@ ggplot(volcano_periplaque, aes(x = log2FoldChange, y = -log10(padj), color = sig
 "LINC00958" %in% rownames(res_periplaque_sig)
 "LINC00486" %in% rownames(res_chronic_sig)
 "LINC00486" %in% rownames(res_periplaque_sig)
+
+# proba samo chronic active vs periplaque
+
+coldata_copy <- as.data.frame(colData(dds))
+izbaceni <- coldata_copy[rownames(coldata_copy) %in% c("chronic-active-MS-lesion-edge-13-047", "MS-periplaque-white-matter-13-015", "control-white-matter-11-69", 
+                                                      "control-white-matter-12-002","control-white-matter-14-043"), ]
+coldata_copy <- coldata_copy[
+  !rownames(coldata_copy) %in% rownames(izbaceni),
+]
+
+coldata_copy_df <- as.data.frame(coldata_copy)
+
+ddsproba <- DESeqDataSetFromMatrix(
+  countData = counts_astrocytes_copy,
+  colData = coldata_copy,
+  design = ~ condition
+)
+keep <- rowSums(counts(ddsproba) > 0) >= ceiling(0.20 * ncol(ddsproba))
+ddsproba <- ddsproba[keep, ]
+nrow(ddsproba)
+ddsproba <- DESeq(ddsproba)
+resultsNames(ddsproba)
+res_chronic_vs_periplaque <- results(ddsproba, name = "condition_periplaque_vs_chronic_active")
+summary(res_chronic_vs_periplaque)
+
+
+
+ncol(counts_astrocytes)   # number of samples in your count matrix
+nrow(coldata_copy)        # number of samples in your colData
+counts_astrocytes_copy <- coldata_copy[colnames(coldata_copy), ]
+counts_astrocytes_copy <- counts_astrocytes[, colnames(counts_astrocytes) %in% rownames(coldata_copy)]
+
+res_periplchron_sig <- as.data.frame(res_chronic_vs_periplaque) %>%
+  filter(!is.na(padj) & padj < 0.05 & abs(log2FoldChange) > 1)
+nrow(res_periplchron_sig)
+head(res_periplchron_sig[order(res_periplchron_sig$padj), ], 10)
+
+library(ggplot2)
+volcano_periplchron <- as.data.frame(res_chronic_vs_periplaque)
+volcano_periplchron$gene <- rownames(volcano_periplchron)
+volcano_periplchron$sig <- case_when(
+  !is.na(volcano_periplchron$padj) & volcano_periplchron$padj < 0.05 & volcano_periplchron$log2FoldChange > 1 ~ "Up",
+  !is.na(volcano_periplchron$padj) & volcano_periplchron$padj < 0.05 & volcano_periplchron$log2FoldChange < -1 ~ "Down",
+  TRUE ~ "NS"
+)
+
+ggplot(volcano_periplchron, aes(x = log2FoldChange, y = -log10(padj), color = sig)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  scale_color_manual(values = c("Up" = "red", "Down" = "blue", "NS" = "grey70")) +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  theme_classic() +
+  labs(
+    title = "Volcano plot: Chronic active vs Periplaque",
+    x = "log2 Fold Change",
+    y = "-log10 adjusted p-value",
+    color = "Regulation"
+  )
+ 
