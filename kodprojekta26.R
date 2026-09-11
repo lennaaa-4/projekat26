@@ -333,4 +333,274 @@ res_mn["LINC00958",]
 res_sig_df <- as.data.frame(res_sig)
 res_sig_df <- as.data.frame(res_sig)
 View(res_sig_df)
+summary(res_sig)
+sum(!is.na(res$padj) & res$padj < 0.05)
+table(colData$condition)
+dim(counts_astrocytes)
+head(colnames(counts_astrocytes))
+sum(rowSums(counts_astrocytes) > 0)
 
+rm(dds, keep, res, res_sig, res_sig_df)
+exists("dds") 
+
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_astrocytes,
+  colData = colData,
+  design = ~ condition
+)
+dim(dds)
+
+keep <- rowSums(counts(dds) > 0) >= ceiling(0.20 * ncol(dds))
+sum(keep)
+dds <- dds[keep, ]
+nrow(dds)
+
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_astrocytes,
+  colData = colData,
+  design = ~ condition
+)
+dim(dds)
+
+keep <- rowSums(counts(dds) > 0) >= ceiling(0.20 * ncol(dds))
+sum(keep)
+dds <- dds[keep, ]
+nrow(dds)
+
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_astrocytes,
+  colData = colData,
+  design = ~ condition
+)
+dim(dds)
+keep <- rowSums(counts(dds) > 0) >= ceiling(0.20 * ncol(dds))
+sum(keep)
+dds <- dds[keep, ]
+nrow(dds)
+dds <- DESeq(dds)
+res <- results(dds, name = "condition_periplaque_vs_chronic_active")
+summary(res)
+
+table(colData$NBB_case, colData$condition)
+rownames(colData)
+colData$NBB_case <- sub('.*-(\\d{2}-\\d{3})$', '\\1', rownames(colData))
+colData$NBB_case
+length(colData$NBB_case)
+nrow(colData)
+str(colData)
+
+table(seurat_obj$pathology)
+colData <- colData %>%
+  mutate(
+    condition = case_when(
+      grepl("chronic_active_MS_lesion_edge", samples) ~ "chronic_active",
+      grepl("MS_periplaque_white_matter", samples) ~ "periplaque",
+      grepl("control_white_matter", samples) ~ "control",
+      TRUE ~ NAcharacter
+    )
+  ) %>%
+  column_to_rownames(var = "samples")
+colnames(counts_astrocytes)
+
+colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
+
+colData <- colData %>%
+  mutate(
+    condition = case_when(
+      grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
+      grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
+      grepl("control-white-matter", samples) ~ "control",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  column_to_rownames(var = "samples")
+
+table(colData$condition, useNA = "ifany")
+
+counts_astrocytes <- cts.split.modified$astrocytes
+dim(counts_astrocytes)
+colnames(counts_astrocytes) 
+colData <- colData %>%
+  mutate(
+    condition = case_when(
+      grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
+      grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
+      grepl("control-white-matter", samples) ~ "control",
+      TRUE ~ NAcharacter
+    )
+  ) %>%
+  column_to_rownames(var = "samples")
+
+table(colData$condition, useNA = "ifany")
+
+colData <- colData %>%
+  mutate(
+    condition = case_when(
+      grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
+      grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
+      grepl("control-white-matter", samples) ~ "control",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  column_to_rownames(var = "samples")
+
+colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
+
+colData <- colData %>%
+  mutate(
+    condition = case_when(
+      grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
+      grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
+      grepl("control-white-matter", samples) ~ "control",
+      TRUE ~ NAcharacter
+    )
+  ) %>%
+  column_to_rownames(var = "samples")
+
+table(colData$condition, useNA = "ifany")
+
+dim(counts_astrocytes)
+colnames(counts_astrocytes)
+colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
+colnames(colData)
+str(colData)
+
+colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
+
+colData <- colData %>%
+  mutate(
+    condition = case_when(
+      grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
+      grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
+      grepl("control-white-matter", samples) ~ "control",
+      TRUE ~ NAcharacter
+    )
+  ) %>%
+  column_to_rownames(var = "samples")
+
+table(colData$condition, useNA = "ifany")
+
+
+colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
+
+condition <- rep(NA, nrow(colData))
+condition[grepl("chronic-active-MS-lesion-edge", colData$samples)] <- "chronic_active"
+condition[grepl("MS-periplaque-white-matter", colData$samples)] <- "periplaque"
+condition[grepl("control-white-matter", colData$samples)] <- "control"
+
+colData$condition <- condition
+rownames(colData) <- colData$samples
+colData$samples <- NULL
+
+table(colData$condition, useNA = "ifany")
+keep <- !is.na(colData$condition)
+colData <- colData[keep, ]
+counts_astrocytes_filtered <- counts_astrocytes[, rownames(colData)]
+
+dim(counts_astrocytes_filtered)   
+table(colData) 
+
+colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
+
+condition <- rep(NA, nrow(colData))
+condition[grepl("chronic-active-MS-lesion-edge", colData$samples)] <- "chronic_active"
+condition[grepl("MS-periplaque-white-matter", colData$samples)] <- "periplaque"
+condition[grepl("control-white-matter", colData$samples)] <- "control"
+
+colData$condition <- condition
+rownames(colData) <- colData$samples
+colData$samples <- NULL
+
+class(colData)   # provera — mora da piše "data.frame"
+
+keep <- !is.na(colData$condition)
+colData <- colData[keep, , drop = FALSE]      # <- dodato drop = FALSE
+counts_astrocytes_filtered <- counts_astrocytes[, rownames(colData)]
+
+class(colData)   # opet provera
+dim(colData)
+
+colData$condition <- factor(colData$condition)
+colData$condition <- relevel(colData$condition, ref = "control")
+
+dds <- DESeqDataSetFromMatrix(
+  countData = counts_astrocytes_filtered,
+  colData = colData,
+  design = ~ condition
+)
+
+keep <- rowSums(counts(dds) > 0) >= ceiling(0.20 * ncol(dds))
+dds <- dds[keep, ]
+nrow(dds)
+
+dds <- DESeq(dds)
+resultsNames(dds)
+res_chronic_vs_control <- results(dds, name = "condition_chronic_active_vs_control")
+summary(res_chronic_vs_control)
+
+res_periplaque_vs_control <- results(dds, name = "condition_periplaque_vs_control")
+summary(res_periplaque_vs_control)
+
+res_chronic_sig <- as.data.frame(res_chronic_vs_control) %>%
+  filter(!is.na(padj) & padj < 0.05 & abs(log2FoldChange) > 1)
+nrow(res_chronic_sig)
+
+res_periplaque_sig <- as.data.frame(res_periplaque_vs_control) %>%
+  filter(!is.na(padj) & padj < 0.05 & abs(log2FoldChange) > 1)
+nrow(res_periplaque_sig)
+head(res_chronic_sig[order(res_chronic_sig$padj), ], 10)
+
+library(ggplot2)
+volcano_chronic <- as.data.frame(res_chronic_vs_control)
+volcano_chronic$gene <- rownames(volcano_chronic)
+volcano_chronic$sig <- case_when(
+  !is.na(volcano_chronic$padj) & volcano_chronic$padj < 0.05 & volcano_chronic$log2FoldChange > 1 ~ "Up",
+  !is.na(volcano_chronic$padj) & volcano_chronic$padj < 0.05 & volcano_chronic$log2FoldChange < -1 ~ "Down",
+  TRUE ~ "NS"
+)
+
+ggplot(volcano_chronic, aes(x = log2FoldChange, y = -log10(padj), color = sig)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  scale_color_manual(values = c("Up" = "red", "Down" = "blue", "NS" = "grey70")) +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  theme_classic() +
+  labs(
+    title = "Volcano plot: Chronic active vs Control",
+    x = "log2 Fold Change",
+    y = "-log10 adjusted p-value",
+    color = "Regulation"
+  )
+
+volcano_chronic <- as.data.frame(res_chronic_vs_control)
+volcano_chronic$gene <- rownames(volcano_chronic)
+volcano_chronic$sig <- case_when(
+  !is.na(volcano_chronic$padj) & volcano_chronic$padj < 0.05 & volcano_chronic$log2FoldChange > 1 ~ "Up",
+  !is.na(volcano_chronic$padj) & volcano_chronic$padj < 0.05 & volcano_chronic$log2FoldChange < -1 ~ "Down",
+  TRUE ~ "NS"
+)
+
+volcano_periplaque <- as.data.frame(res_periplaque_vs_control)
+volcano_periplaque$gene <- rownames(volcano_periplaque)
+volcano_periplaque$sig <- case_when(
+  !is.na(volcano_periplaque$padj) & volcano_periplaque$padj < 0.05 & volcano_periplaque$log2FoldChange > 1 ~ "Up",
+  !is.na(volcano_periplaque$padj) & volcano_periplaque$padj < 0.05 & volcano_periplaque$log2FoldChange < -1 ~ "Down",
+  TRUE ~ "NS"
+)
+
+ggplot(volcano_periplaque, aes(x = log2FoldChange, y = -log10(padj), color = sig)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  scale_color_manual(values = c("Up" = "red", "Down" = "blue", "NS" = "grey70")) +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "black") +
+  theme_classic() +
+  labs(
+    title = "Volcano plot: Periplaque vs Control",
+    x = "log2 Fold Change",
+    y = "-log10 adjusted p-value",
+    color = "Regulation"
+  )
+"LINC00958" %in% rownames(res_chronic_sig)
+"LINC00958" %in% rownames(res_periplaque_sig)
+"LINC00486" %in% rownames(res_chronic_sig)
+"LINC00486" %in% rownames(res_periplaque_sig)
