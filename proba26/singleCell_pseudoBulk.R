@@ -61,9 +61,9 @@ cts <- AggregateExpression(seu.filtered,
                     group.by = c("cell", "samples"),
                     assays = 'originalexp',
                     slot = "counts",
-                    return.seurat = FALSE)
+                    return.seurat = FALSE) 
 
-cts <- cts$originalexp
+cts <- cts$originalexp 
 
 # transpose
 cts.t <- t(cts)

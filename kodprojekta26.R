@@ -254,7 +254,7 @@ DimPlot(seurat_obj, reduction = "umap", label = TRUE)
 
 library(Seurat)
 library(DESeq2)
-library(tidyverse)
+library(tidyverse) # ucitavanje paketa
 
 cell_plot <- DimPlot(seurat_obj, reduction = 'umap', group.by = 'cell_type', label = TRUE)
 cond_plot <- DimPlot(seurat_obj, reduction = 'umap', group.by = 'pathology')
@@ -266,26 +266,26 @@ cts <- AggregateExpression(seurat_obj,
                            group.by = c("cell_type", "samples"),
                            assays = 'RNA',
                            slot = "counts",
-                           return.seurat = FALSE)
+                           return.seurat = FALSE) # pravljenje counts matrice
 
-cts <- cts$RNA
+cts <- cts$RNA # definisanje counts matrice kao RNA eseja 
 
-cts.t <- t(cts)
-cts.t <- as.data.frame(cts.t)
-splitRows <- gsub('_.*', '', rownames(cts.t))
+cts.t <- t(cts) # transpovanje
+cts.t <- as.data.frame(cts.t) # konvertovanje u data frame
+splitRows <- gsub('_.*', '', rownames(cts.t)) # grupisanje po prefiksu
 cts.split <- split.data.frame(cts.t,
-                              f = factor(splitRows))
+                              f = factor(splitRows)) # deljenje po grupama (sample-ovima)
 cts.split.modified <- lapply(cts.split, function(x){
   rownames(x) <- gsub('.*_(.*)', '\\1', rownames(x))
   t(x)
   
-})
+}) # sredjivanje napravljenih grupa
 
-counts_astrocytes <- cts.split.modified$astrocytes
-dim(counts_astrocytes)
-View(counts_astrocytes)
+counts_astrocytes <- cts.split.modified$astrocytes 
+dim(counts_astrocytes) 
+View(counts_astrocytes) # definisanje matrice s astrocitima
 
-colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
+colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE) # definisanje metapodatka
 colData <- colData %>%
   mutate(
     condition = case_when(
@@ -294,9 +294,9 @@ colData <- colData %>%
       TRUE ~ NA_character_
     )
   ) %>%
-  column_to_rownames(var = "samples")
-keep <- !is.na(colData$condition)
-colData <- colData[keep, ]
+  column_to_rownames(var = "samples") # uredjivanje metapodataka tako da ostanu samo hronicno aktivne lezije i periplakna bela masa
+keep <- !is.na(colData$condition) 
+colData <- colData[keep, ] #odbacivanje podataka za koje nema nikakvih rezultata upisanih i ocitanih (NA)
 counts_astrocytes <- counts_astrocytes[, rownames(colData)]
 dim(counts_astrocytes)
 colData <- colData[!is.na(colData$condition), , drop = FALSE]
@@ -304,56 +304,45 @@ nrow(colData)
 counts_astrocytes <- counts_astrocytes[, rownames(colData), drop = FALSE]
 dim(counts_astrocytes)
 View(colData)
-View(counts_astrocytes)
+View(counts_astrocytes) # dodatna formatiranja i provere matrice astrocita i metapodataka
 
 # III DESeq2
-table(colData$condition)
+table(colData$condition) # prebrojavanje vrednosti u koloni condition
 library(DESeq2)
 dds <- DESeqDataSetFromMatrix(
   countData = counts_astrocytes,
   colData = colData,
   design = ~ condition
-)
-keep <- rowSums(counts(dds) > 0) >= ceiling(0.20 * ncol(dds))
-dds <- dds[keep, ]
-nrow(dds)
-dds <- DESeq(dds)
+)                        # pravljenje DESeq2 objekta
+keep <- rowSums(counts(dds) > 0) >= ceiling(0.20 * ncol(dds)) # definisanje prvog filtera gena (minimum 20% uzoraka)
+dds <- dds[keep, ] # primena filtera
+nrow(dds) # provera broja gena nakon filtracije
+dds <- DESeq(dds) # pokretanje analize
 res <- results(
   dds,
   name = "condition_periplaque_vs_chronic_active"
-)
+) # izvlacenje rezultata analize
 res_sig <- res[
   !is.na(res$padj) &
     res$padj < 0.05 &
     abs(res$log2FoldChange) > 1,
-]
-head(res_sig)
+] # filtriranje znacajnih gena 
+head(res_sig) # prikaz prvih 10 gena koji su prosli analizu
 res_sig["LINC00958",]
-res_mn["LINC00958",]
+res_mn["LINC00958",] # provera postojanja LINC00958 u rezultatima (filtriranim znacajnim i nefiltriranim)
 res_sig_df <- as.data.frame(res_sig)
-res_sig_df <- as.data.frame(res_sig)
+res_sig_df <- as.data.frame(res_sig) # definisanje dataframe-a za znacajne rezultate
 View(res_sig_df)
-summary(res_sig)
+summary(res_sig) 
 sum(!is.na(res$padj) & res$padj < 0.05)
 table(colData$condition)
 dim(counts_astrocytes)
 head(colnames(counts_astrocytes))
-sum(rowSums(counts_astrocytes) > 0)
+sum(rowSums(counts_astrocytes) > 0) ## ponavljanje koda i provere zbog nelogicnog rezultata
 
-rm(dds, keep, res, res_sig, res_sig_df)
+rm(dds, keep, res, res_sig, res_sig_df) 
 exists("dds") 
 
-dds <- DESeqDataSetFromMatrix(
-  countData = counts_astrocytes,
-  colData = colData,
-  design = ~ condition
-)
-dim(dds)
-
-keep <- rowSums(counts(dds) > 0) >= ceiling(0.20 * ncol(dds))
-sum(keep)
-dds <- dds[keep, ]
-nrow(dds)
 
 dds <- DESeqDataSetFromMatrix(
   countData = counts_astrocytes,
@@ -550,6 +539,8 @@ res_periplaque_sig <- as.data.frame(res_periplaque_vs_control) %>%
 nrow(res_periplaque_sig)
 head(res_chronic_sig[order(res_chronic_sig$padj), ], 10)
 
+### ponavljanje cele analize ali uz kasnije dodavanje kontrolne grupe (zdrava bela masa)
+
 library(ggplot2)
 volcano_chronic <- as.data.frame(res_chronic_vs_control)
 volcano_chronic$gene <- rownames(volcano_chronic)
@@ -600,12 +591,18 @@ ggplot(volcano_periplaque, aes(x = log2FoldChange, y = -log10(padj), color = sig
     y = "-log10 adjusted p-value",
     color = "Regulation"
   )
+# pravljenje VolcanoPlotova za vizuelizaciju rezultata
+
+
 "LINC00958" %in% rownames(res_chronic_sig)
 "LINC00958" %in% rownames(res_periplaque_sig)
 "LINC00486" %in% rownames(res_chronic_sig)
 "LINC00486" %in% rownames(res_periplaque_sig)
 
-# proba samo chronic active vs periplaque
+
+
+
+
 
 coldata_copy <- as.data.frame(colData(dds))
 izbaceni <- coldata_copy[rownames(coldata_copy) %in% c("chronic-active-MS-lesion-edge-13-047", "MS-periplaque-white-matter-13-015", "control-white-matter-11-69", 
@@ -613,7 +610,6 @@ izbaceni <- coldata_copy[rownames(coldata_copy) %in% c("chronic-active-MS-lesion
 coldata_copy <- coldata_copy[
   !rownames(coldata_copy) %in% rownames(izbaceni),
 ]
-
 coldata_copy_df <- as.data.frame(coldata_copy)
 
 ddsproba <- DESeqDataSetFromMatrix(
@@ -629,10 +625,8 @@ resultsNames(ddsproba)
 res_chronic_vs_periplaque <- results(ddsproba, name = "condition_periplaque_vs_chronic_active")
 summary(res_chronic_vs_periplaque)
 
-
-
-ncol(counts_astrocytes)   # number of samples in your count matrix
-nrow(coldata_copy)        # number of samples in your colData
+ncol(counts_astrocytes)   
+nrow(coldata_copy)        
 counts_astrocytes_copy <- coldata_copy[colnames(coldata_copy), ]
 counts_astrocytes_copy <- counts_astrocytes[, colnames(counts_astrocytes) %in% rownames(coldata_copy)]
 
@@ -662,4 +656,4 @@ ggplot(volcano_periplchron, aes(x = log2FoldChange, y = -log10(padj), color = si
     y = "-log10 adjusted p-value",
     color = "Regulation"
   )
- 
+# ponovno isprobavanje  chronic active vs periplaque

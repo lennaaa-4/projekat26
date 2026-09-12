@@ -57,7 +57,7 @@ LabelPoints(plot = plot1, points = c("LINC00958", top10), repel = TRUE)
 
 # 5. Scaling -------------
 all.genes <- rownames(nsclc.seurat.obj)
-nsclc.seurat.obj <- ScaleData(nsclc.seurat.obj, features = all.genes)
+nsclc.seurat.obj <- ScaleData(nsclc.seurat.obj, features = VariableFeatures(seurat_obj)) # samo najvarijabilnije na kraju
 
 str(nsclc.seurat.obj)
 
