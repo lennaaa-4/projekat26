@@ -657,3 +657,189 @@ ggplot(volcano_periplchron, aes(x = log2FoldChange, y = -log10(padj), color = si
     color = "Regulation"
   )
 # ponovno isprobavanje  chronic active vs periplaque
+rownames(res_periplaque_sig)
+rownames(res_chronic_sig)
+
+# pROC
+library(pROC)
+install.packages("pROC")
+
+vsd <- vst(dds, blind = FALSE)
+norm_expr <- assay(vsd)  # matrica: geni x uzorci, normalizovano i log-transformisano
+
+gene_of_interest <- "U91319.1"
+expr_values <- norm_expr[gene_of_interest, ]
+
+roc_data <- data.frame(
+  sample = names(expr_values),
+  expression = as.numeric(expr_values),
+  condition = colData[names(expr_values), "condition"]
+)
+
+library(dplyr)
+
+summary_stats <- roc_data %>%
+  group_by(condition) %>%
+  summarise(
+    mean_expr = mean(expression),
+    sd_expr = sd(expression)
+  )
+
+print(summary_stats)
+
+# Control vs chronic_active
+roc_data_1 <- roc_data[roc_data$condition %in% c("control", "chronic_active"), ]
+roc_obj_1 <- roc(response = roc_data_1$condition, 
+                 predictor = roc_data_1$expression,
+                 levels = c("control", "chronic_active"))
+auc(roc_obj_1)
+
+# Control vs periplaque
+roc_data_2 <- roc_data[roc_data$condition %in% c("control", "periplaque"), ]
+roc_obj_2 <- roc(response = roc_data_2$condition, 
+                 predictor = roc_data_2$expression,
+                 levels = c("control", "periplaque"))
+auc(roc_obj_2)
+
+ci.auc(roc_obj_1)
+ci.auc(roc_obj_2)
+
+plot(roc_obj_1, col = "blue", lwd = 2, main = "ROC krive - U91319.1")
+plot(roc_obj_2, col = "red", lwd = 2, add = TRUE)
+
+legend("bottomright", 
+       legend = c(paste0("Chronic active (AUC=", round(auc(roc_obj_1), 3), ")"),
+                  paste0("Periplaque (AUC=", round(auc(roc_obj_2), 3), ")")),
+       col = c("blue", "red"), 
+       lwd = 2)
+
+
+# analiza signalnih puteva
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager")
+}
+BiocManager::install("progeny")
+library(progeny)
+library(dplyr)
+
+# već postojeći normalizovani expression matrix
+expr_matrix <- assay(vsd)  # geni x uzorci
+
+pathway_activity <- progeny(
+  expr_matrix,
+  scale = TRUE,        # standardizuje scores (preporučeno)
+  organism = "Human", 
+  top = 100             # broj top gena po pathway-u koji se koristi (default 100)
+)
+
+pathway_df <- as.data.frame(pathway_activity)
+pathway_df$sample <- rownames(pathway_df)
+pathway_df$condition <- colData[pathway_df$sample, "condition"]
+
+library(tidyr)
+pathway_long <- pathway_df %>%
+  pivot_longer(cols = -c(sample, condition), 
+               names_to = "pathway", 
+               values_to = "activity")
+
+# Wilcoxon test po pathway-u
+pathway_stats <- pathway_long %>%
+  group_by(pathway) %>%
+  summarise(
+    p_value = wilcox.test(activity ~ condition)$p.value
+  ) %>%
+  arrange(p_value)
+print(pathway_stats)
+
+colnames(pathway_df)
+str(pathway_df)
+setdiff(pathway_df$sample, rownames(colData))
+setdiff(rownames(colData), pathway_df$sample)
+pathway_df$condition <- colData$condition[match(pathway_df$sample, rownames(colData))]
+
+# provera
+head(pathway_df$condition)
+sum(is.na(pathway_df$condition))   
+colnames(pathway_df)               
+
+class(colData)
+colnames(colData)
+str(colData)
+match_result <- match(pathway_df$sample, rownames(colData))
+match_result   
+
+condition_values <- colData$condition[match_result]
+condition_values  
+
+pathway_df$condition <- condition_values
+head(pathway_df)
+
+
+pathway_long <- pathway_df %>%
+  pivot_longer(
+    cols = -all_of(c("sample", "condition")),
+    names_to = "pathway",
+    values_to = "activity"
+  )
+
+head(pathway_long)
+
+library(purrr)
+
+# Chronic_active vs control
+stats_chronic <- pathway_long %>%
+  filter(condition %in% c("control", "chronic_active")) %>%
+  group_by(pathway) %>%
+  summarise(p_value = wilcox.test(activity ~ droplevels(condition))$p.value) %>%
+  arrange(p_value)
+
+# Periplaque vs control
+stats_periplaque <- pathway_long %>%
+  filter(condition %in% c("control", "periplaque")) %>%
+  group_by(pathway) %>%
+  summarise(p_value = wilcox.test(activity ~ droplevels(condition))$p.value) %>%
+  arrange(p_value)
+
+print(stats_chronic)
+print(stats_periplaque)
+
+install.packages("pheatmap")
+library(pheatmap)
+
+# za chronic_active vs control
+subset_samples <- rownames(colData)[colData$condition %in% c("control", "chronic_active")]
+pathway_subset <- pathway_activity[subset_samples, ]
+
+annotation_col <- data.frame(condition = colData[subset_samples, "condition", drop = FALSE])
+
+
+pheatmap(
+  t(pathway_subset),
+  annotation_col = annotation_col,
+  scale = "row",
+  main = "PROGENy - chronic_active vs control"
+)
+
+# Periplaque vs control - PROGENy heatmap
+subset_samples_pp <- rownames(colData)[colData$condition %in% c("control", "periplaque")]
+pathway_subset_pp <- pathway_activity[subset_samples_pp, ]
+
+annotation_col_pp <- data.frame(condition = colData[subset_samples_pp, "condition", drop = FALSE])
+
+pheatmap(
+  t(pathway_subset_pp),
+  annotation_col = annotation_col_pp,
+  scale = "row",
+  main = "PROGENy - periplaque vs control"
+)
+
+library(ggplot2)
+
+pathway_of_interest <- "JAK-STAT"  
+
+pathway_long %>%
+  filter(pathway == pathway_of_interest) %>%
+  ggplot(aes(x = condition, y = activity, fill = condition)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = paste(pathway_of_interest, "- sve grupe"), y = "Activity score")
