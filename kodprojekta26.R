@@ -422,29 +422,9 @@ colData <- colData %>%
 
 table(colData$condition, useNA = "ifany")
 
-colData <- colData %>%
-  mutate(
-    condition = case_when(
-      grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
-      grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
-      grepl("control-white-matter", samples) ~ "control",
-      TRUE ~ NA_character_
-    )
-  ) %>%
-  column_to_rownames(var = "samples")
 
 colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE)
 
-colData <- colData %>%
-  mutate(
-    condition = case_when(
-      grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
-      grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
-      grepl("control-white-matter", samples) ~ "control",
-      TRUE ~ NAcharacter
-    )
-  ) %>%
-  column_to_rownames(var = "samples")
 
 table(colData$condition, useNA = "ifany")
 
@@ -594,16 +574,7 @@ ggplot(volcano_periplaque, aes(x = log2FoldChange, y = -log10(padj), color = sig
 # pravljenje VolcanoPlotova za vizuelizaciju rezultata
 
 
-"LINC00958" %in% rownames(res_chronic_sig)
-"LINC00958" %in% rownames(res_periplaque_sig)
-"LINC00486" %in% rownames(res_chronic_sig)
-"LINC00486" %in% rownames(res_periplaque_sig)
-
-
-
-
-
-
+# proba ponovo sa periplaknom i hronicno aktivnom
 coldata_copy <- as.data.frame(colData(dds))
 izbaceni <- coldata_copy[rownames(coldata_copy) %in% c("chronic-active-MS-lesion-edge-13-047", "MS-periplaque-white-matter-13-015", "control-white-matter-11-69", 
                                                       "control-white-matter-12-002","control-white-matter-14-043"), ]
@@ -843,3 +814,263 @@ pathway_long %>%
   geom_boxplot() +
   theme_minimal() +
   labs(title = paste(pathway_of_interest, "- sve grupe"), y = "Activity score")
+
+ggplot(pathway_long, aes(x = condition, y = activity, fill = condition)) +
+  geom_boxplot() +
+  facet_wrap(~ pathway, scales = "free_y") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "PROGENy pathway activity po grupama", y = "Activity score")
+
+
+
+
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("OmnipathR")
+library(decoupleR)
+library(dplyr)
+library(tidyr)
+library(pROC)
+
+# 1. Učitaj PROGENy model
+net <- get_progeny(organism = "human", top = 500)
+
+# 2. Izračunaj pathway aktivnost za SVE puteve, za sve uzorke
+pathway_acts <- run_wmean(mat = as.matrix(expr_matrix), 
+                          network = net, 
+                          .source = "source", 
+                          .target = "target",
+                          times = 100)  # permutacije za norm_wmean
+
+# PROVERA 1: pogledaj strukturu pre nego što nastaviš
+print(colnames(pathway_acts))
+print(unique(pathway_acts$statistic))
+print(unique(pathway_acts$source))
+
+# 3. Izvuci SAMO EGFR aktivnost, samo normalizovanu statistiku
+egfr_acts <- pathway_acts %>%
+  filter(statistic == "norm_wmean", source == "EGFR")
+
+# PROVERA 2
+print(egfr_acts)
+nrow(egfr_acts)  # treba da bude = broj uzoraka
+
+# 4. Uskladi redosled uzoraka sa clinical_labels
+egfr_acts <- egfr_acts[match(colnames(expr_matrix), egfr_acts$condition), ]
+
+# PROVERA 3: da li se redosled poklapa
+identical(egfr_acts$condition, colnames(expr_matrix))
+
+# 5. ROC/AUC analiza
+roc_egfr <- roc(response = condition, 
+                predictor = egfr_acts$score,
+                levels = c("control", "chronic_active", "periplaque"),
+                direction = "<")
+print(roc_egfr)
+plot(roc_egfr, print.auc = TRUE, print.thres = TRUE)
+auc(roc_egfr)
+coords(roc_egfr, "best", ret = c("threshold", "sensitivity", "specificity"))
+
+# multiclass ROC
+multi_roc <- multiclass.roc(response = condition_fixed, 
+                            predictor = egfr_acts$score)
+print(multi_roc)
+auc(multi_roc)
+multi_roc <- multiclass.roc(response = condition_fixed, 
+                            predictor = egfr_acts$score)
+
+# multi_roc$rocs sadrži listu svih pairwise ROC objekata
+plot(multi_roc$rocs[[1]], main = "Multiclass ROC - EGFR")
+plot(multi_roc$rocs[[2]], add = TRUE, col = "red")
+plot(multi_roc$rocs[[3]], add = TRUE, col = "blue")
+
+legend("bottomright", 
+       legend = c("Pair 1", "Pair 2", "Pair 3"),
+       col = c("black", "red", "blue"), lwd = 2)
+
+# ili pairwise (preporučeno, jer ti condition ima 3 nivoa)
+roc_1 <- roc(response = condition_fixed, 
+             predictor = egfr_acts$score,
+             levels = c("control", "chronic_active"),
+             direction = "<")
+
+roc_2 <- roc(response = condition_fixed, 
+             predictor = egfr_acts$score,
+             levels = c("control", "periplaque"),
+             direction = "<")
+
+roc_3 <- roc(response = condition_fixed, 
+             predictor = egfr_acts$score,
+             levels = c("chronic_active", "periplaque"),
+             direction = "<")
+
+auc(roc_1); auc(roc_2); auc(roc_3)
+
+# Izvuci parove direktno iz $levels svakog roc objekta
+pair_names <- sapply(multi_roc$rocs, function(x) paste(x$levels, collapse = " vs "))
+
+auc_table <- data.frame(
+  Par = pair_names,
+  AUC = sapply(multi_roc$rocs, function(x) round(auc(x), 3))
+)
+
+print(auc_table)
+
+ci.auc(multi_roc$rocs[[1]])  # control vs chronic_active
+ci.auc(multi_roc$rocs[[2]])  # control vs periplaque
+ci.auc(multi_roc$rocs[[3]])  # chronic_active vs periplaque
+
+library(pROC)
+library(dplyr)
+library(tidyr)
+
+# Lista svih puteva koje želiš testirati
+pathways <- unique(pathway_acts$source)
+
+# Prazna lista za rezultate
+results_list <- list()
+
+for (pw in pathways) {
+  
+  # Izvuci aktivnost za taj put
+  pw_acts <- pathway_acts %>%
+    filter(statistic == "norm_wmean", source == pw)
+  
+  # Uskladi redosled sa expr_matrix
+  pw_acts <- pw_acts[match(colnames(expr_matrix), pw_acts$condition), ]
+  
+  # Preskoči ako nešto ne štima (npr. NA usklađivanje)
+  if (any(is.na(pw_acts$score)) || nrow(pw_acts) != length(condition_fixed)) {
+    next
+  }
+  
+  # Multiclass ROC za taj put
+  mr <- tryCatch({
+    multiclass.roc(response = condition_fixed, predictor = pw_acts$score)
+  }, error = function(e) NULL)
+  
+  if (is.null(mr)) next
+  
+  # Za svaki par unutar tog puta, izvuci AUC i CI
+  for (roc_obj in mr$rocs) {
+    pair <- paste(roc_obj$levels, collapse = " vs ")
+    auc_val <- as.numeric(auc(roc_obj))
+    ci_val <- tryCatch(ci.auc(roc_obj), error = function(e) c(NA, NA, NA))
+    
+    results_list[[length(results_list) + 1]] <- data.frame(
+      Pathway = pw,
+      Pair = pair,
+      AUC = round(auc_val, 3),
+      CI_lower = round(as.numeric(ci_val[1]), 3),
+      CI_upper = round(as.numeric(ci_val[3]), 3),
+      CI_width = round(as.numeric(ci_val[3]) - as.numeric(ci_val[1]), 3)
+    )
+  }
+}
+
+# Spoji sve u jednu tabelu
+all_results <- do.call(rbind, results_list)
+
+# Sortiraj po najužem CI (najpouzdaniji rezultati na vrhu)
+all_results <- all_results[order(all_results$CI_width), ]
+
+print(all_results)
+print(all_results_clean)
+
+
+# geni i WNT
+
+# Pretpostavka: imaš res_periplaque_vs_control (DESeq2 rezultat)
+# koji sadrži bar log2FoldChange i stat kolonu
+library(dplyr)
+de_res <- as.data.frame(res_periplaque_vs_control)
+de_res$gene <- rownames(de_res)
+wnt_genes <- dplyr::filter(net, source == "WNT")
+wnt_genes <- dplyr::arrange(wnt_genes, desc(abs(weight)))
+print(head(wnt_genes, 10))
+
+
+# Spoji sa WNT težinama
+wnt_contribution <- wnt_genes %>%
+  inner_join(de_res, by = c("target" = "gene")) %>%
+  mutate(contribution = weight * stat) %>%  # ili weight * log2FoldChange
+  arrange(desc(abs(contribution)))
+
+print(head(wnt_contribution, 20))
+
+# Vizualizacija top doprinosa
+top_contrib <- head(wnt_contribution, 20)
+
+ggplot(top_contrib, aes(x = reorder(target, contribution), y = contribution, 
+                        fill = contribution > 0)) +
+  geom_col() +
+  coord_flip() +
+  theme_minimal() +
+  scale_fill_manual(values = c("firebrick", "steelblue"),
+                    labels = c("Smanjuje skor", "Povećava skor"), name = "Efekat") +
+  labs(title = "Geni koji najviše doprinose WNT pathway skoru (Periplaque vs Control)",
+       subtitle = "Doprinos = PROGENy težina × DE statistika",
+       x = "Gen", y = "Doprinos skoru")
+
+
+library(dplyr)
+de_res1 <- as.data.frame(res_chronic_vs_control)
+de_res1$gene <- rownames(de_res1)
+wnt_genes1 <- dplyr::filter(net, source == "WNT")
+wnt_genes1 <- dplyr::arrange(wnt_genes1, desc(abs(weight)))
+print(head(wnt_genes1, 10))
+
+
+# Spoji sa WNT težinama
+wnt_contribution1 <- wnt_genes1 %>%
+  inner_join(de_res1, by = c("target" = "gene")) %>%
+  mutate(contribution = weight * stat) %>%  # ili weight * log2FoldChange
+  arrange(desc(abs(contribution)))
+
+print(head(wnt_contribution1, 20))
+
+# Vizualizacija top doprinosa
+top_contrib1 <- head(wnt_contribution1, 20)
+
+ggplot(top_contrib1, aes(x = reorder(target, contribution), y = contribution, 
+                        fill = contribution > 0)) +
+  geom_col() +
+  coord_flip() +
+  theme_minimal() +
+  scale_fill_manual(values = c("firebrick", "steelblue"),
+                    labels = c("Smanjuje skor", "Povećava skor"), name = "Efekat") +
+  labs(title = "Geni koji najviše doprinose WNT pathway skoru (Chronic active vs Control)",
+       subtitle = "Doprinos = PROGENy težina × DE statistika",
+       x = "Gen", y = "Doprinos skoru")
+
+library(dplyr)
+de_res2 <- as.data.frame(res_chronic_vs_periplaque)
+de_res2$gene <- rownames(de_res2)
+wnt_genes2 <- dplyr::filter(net, source == "WNT")
+wnt_genes2 <- dplyr::arrange(wnt_genes2, desc(abs(weight)))
+print(head(wnt_genes1, 10))
+
+
+# Spoji sa WNT težinama
+wnt_contribution2 <- wnt_genes2 %>%
+  inner_join(de_res2, by = c("target" = "gene")) %>%
+  mutate(contribution = weight * stat) %>%  # ili weight * log2FoldChange
+  arrange(desc(abs(contribution)))
+
+print(head(wnt_contribution2, 20))
+
+# Vizualizacija top doprinosa
+top_contrib2 <- head(wnt_contribution2, 20)
+
+ggplot(top_contrib2, aes(x = reorder(target, contribution), y = contribution, 
+                         fill = contribution > 0)) +
+  geom_col() +
+  coord_flip() +
+  theme_minimal() +
+  scale_fill_manual(values = c("firebrick", "steelblue"),
+                    labels = c("Smanjuje skor", "Povećava skor"), name = "Efekat") +
+  labs(title = "Geni koji najviše doprinose WNT pathway skoru (Chronic active vs Periplaque)",
+       subtitle = "Doprinos = PROGENy težina × DE statistika",
+       x = "Gen", y = "Doprinos skoru")
