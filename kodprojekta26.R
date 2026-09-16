@@ -1074,3 +1074,23 @@ ggplot(top_contrib2, aes(x = reorder(target, contribution), y = contribution,
   labs(title = "Geni koji najviše doprinose WNT pathway skoru (Chronic active vs Periplaque)",
        subtitle = "Doprinos = PROGENy težina × DE statistika",
        x = "Gen", y = "Doprinos skoru")
+
+
+# uporeda gena znacajnih za WNT i dif eksprimiranih
+
+# Genes that are significantly differentially expressed
+de_genes <- de_res$target[de_res$adj.P.Val < 0.05]
+
+str(wnt_genes)
+str(wnt_de)
+str(wnt_contribution)
+str(wnt_de_sig)
+
+# Genes with a "worthy" PROGENy WNT weight
+wnt_genes_list <- wnt_genes$target
+
+# Which ones show up in both lists?
+overlap <- intersect(de_genes, wnt_genes_list)
+overlap
+
+length(overlap)   # how many overlap
