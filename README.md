@@ -24,4 +24,10 @@
 
  Sedmi dan 12.9.2026.
 
- Pisanje izvestaja i komentara za figure. Procena dijagnosticke vrednosti kao biomarkera.
+ Pisanje izvestaja i komentara za figure. Uradjena je provera dijagnostickog potencijala kao biomarkera za dugu nekodirajucu RNK U91319.1 koja je bila medju diferencijalno eksprimiranim i kod periplakne i kod hronicno aktivne bele mase. Rezultati dobijeni vizualizacijom su u skladu sa ocekivanjima, tj. prate logiku rezultata iz prethodne analize diferencijalne ekspresije. Odluceno je da se ne koriste ovi rezultati i analiza u projektu jer je velika mogucnost greske zbog malog broja uzoraka.
+
+ Osmi dan 13.9.2026.
+
+ Odradjena je nizvodna analiza signalnih puteva i njihove aktivnosti koristeci se paketom PROGENy i nappravljeni su Pheatmapovi za vizualizaciju rezultata u formi uzorci periplakna i uzorci kontrola + svi signalni putevi i uzorci hronicno aktivna i uzorci kontrola + svi signalni putevi. Nakon toga je zbog prethodne hipoteze projekta uradjena BoxPlot vizualizacija za JAK-STAT signalni put.
+
+ Deveti dan 14.9.2026.
