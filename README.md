@@ -24,10 +24,20 @@
 
  Sedmi dan 12.9.2026.
 
- Pisanje izvestaja i komentara za figure. Uradjena je provera dijagnostickog potencijala kao biomarkera za dugu nekodirajucu RNK U91319.1 koja je bila medju diferencijalno eksprimiranim i kod periplakne i kod hronicno aktivne bele mase. Rezultati dobijeni vizualizacijom su u skladu sa ocekivanjima, tj. prate logiku rezultata iz prethodne analize diferencijalne ekspresije. Odluceno je da se ne koriste ovi rezultati i analiza u projektu jer je velika mogucnost greske zbog malog broja uzoraka.
+ Pisanje izvestaja i komentara za figure. Uradjena je provera dijagnostickog potencijala kao biomarkera (paket pROC) za dugu nekodirajucu RNK U91319.1 koja je bila medju diferencijalno eksprimiranim i kod periplakne i kod hronicno aktivne bele mase. Rezultati dobijeni vizualizacijom su u skladu sa ocekivanjima, tj. prate logiku rezultata iz prethodne analize diferencijalne ekspresije. Odluceno je da se ne koriste ovi rezultati i analiza u projektu jer je velika mogucnost greske zbog malog broja uzoraka.
 
  Osmi dan 13.9.2026.
 
  Odradjena je nizvodna analiza signalnih puteva i njihove aktivnosti koristeci se paketom PROGENy i nappravljeni su Pheatmapovi za vizualizaciju rezultata u formi uzorci periplakna i uzorci kontrola + svi signalni putevi i uzorci hronicno aktivna i uzorci kontrola + svi signalni putevi. Nakon toga je zbog prethodne hipoteze projekta uradjena BoxPlot vizualizacija za JAK-STAT signalni put.
 
  Deveti dan 14.9.2026.
+
+Uradjena je procena dijagnosticke vrednosti kao biomarkera za signalni put EGFR, koji je potvrdjeno jedan od kljucnih "regulatora" bolesti, koristeci pakete decoupleR i pROC. Uradjen je Multiclass ROC sa sve tri grupe tkiva tj. sva tri moguca para tkiva. Rezultati su prikazani u vidu ROC kriva. Daljom obradom (proverom AUC i CI skorova) utvrdjeno je da rezultati nisu statisticki znacajni.
+
+Deseti dan 15.9.2026.
+
+Uradjena je pROC analiza za sve signalne puteve i prikazani su rezultati koji su podrazumevali ime signalnog puta, ime para tkiva koja su uporedjena, AUC vrednost (vrednost povrsine ispod ROC krive), donja i gornja granica CI vrednosti (stepen pouzdanosti AUC procene) kao i razlika izmedju granica. U ovim rezultatima najbolji skor imao je WNT signalni put kod uporede periplakne bele mase i kontrola (AUC: 0.917, raspon CI: 0.314). Odluceno je uraditi jos nizvodnih analiza targetirajuci specificno WNT signalni put.
+
+Jedanaesti dan 16.9.2026.
+
+Uzeti su rezultati analize diferencijalne ekspresije i WNT vrednosti dobijene u prethodnoj analizi. WNT rezultati filtrirani su tako da se uzimaju u obzir samo geni koji imaju pozitivan ili negativan doprinos signalnom putu. Nakon toga, rezultati spojeni su sa rezultatima analize diferencijalne ekspresije i uradjen je grafik. Ovo je ponovljeno za sva tri para. Grafici oznacavaju znacaj gena tj. koji su geni najodgovorniji za promene WNT skora. Potom je istrazen znacaj WNT signalnog puta u multiploj sklerozi i trazena je ideja za preformulisanje poente rada.
