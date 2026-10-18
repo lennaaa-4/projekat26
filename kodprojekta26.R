@@ -1094,3 +1094,4 @@ overlap <- intersect(de_genes, wnt_genes_list)
 overlap
 
 length(overlap)   # how many overlap
+
