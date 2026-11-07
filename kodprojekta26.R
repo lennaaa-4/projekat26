@@ -28,7 +28,7 @@ print(seurat_obj[["pca"]], dims = 1:5, nfeatures = 5)
 library(ggplot2)
 DimHeatmap(seurat_obj, dims = 1, cells = 500, balanced = TRUE, fast = FALSE) + 
   labs(title = "DimHeatMap za PC_1", x="celije",y="geni") +
-    theme(
+  theme(
     legend.position = "right",
   )
 ElbowPlot(seurat_obj)
@@ -79,7 +79,7 @@ plot_ly(
       zaxis = list(title = "PC3")
     )
   )
- ### 3d prikaz 2. deo (isto kao i prethodno)
+### 3d prikaz 2. deo (isto kao i prethodno)
 
 library(ggplot2)
 library(grid)
@@ -257,7 +257,9 @@ library(DESeq2)
 library(tidyverse) # ucitavanje paketa
 
 cell_plot <- DimPlot(seurat_obj, reduction = 'umap', group.by = 'cell_type', label = TRUE)
+cell_plot
 cond_plot <- DimPlot(seurat_obj, reduction = 'umap', group.by = 'pathology')
+cond_plot
 cell_plot|cond_plot # vizualizacija 
 
 seurat_obj$samples <- paste0(seurat_obj$pathology, "_", seurat_obj$NBB_case)
@@ -281,8 +283,8 @@ cts.split.modified <- lapply(cts.split, function(x){
   
 }) # sredjivanje napravljenih grupa
 
-counts_astrocytes <- cts.split.modified$astrocytes 
-dim(counts_astrocytes) 
+counts_astrocytes <- cts.split.modified$astrocytes
+dim(counts_astrocytes)
 View(counts_astrocytes) # definisanje matrice s astrocitima
 
 colData <- data.frame(samples = colnames(counts_astrocytes), stringsAsFactors = FALSE) # definisanje metapodatka
@@ -291,19 +293,18 @@ colData <- colData %>%
     condition = case_when(
       grepl("chronic-active-MS-lesion-edge", samples) ~ "chronic_active",
       grepl("MS-periplaque-white-matter", samples) ~ "periplaque",
+      grepl("control-white-matter", samples) ~ "control",
       TRUE ~ NA_character_
     )
   ) %>%
-  column_to_rownames(var = "samples") # uredjivanje metapodataka tako da ostanu samo hronicno aktivne lezije i periplakna bela masa
-keep <- !is.na(colData$condition) 
-colData <- colData[keep, ] #odbacivanje podataka za koje nema nikakvih rezultata upisanih i ocitanih (NA)
-counts_astrocytes <- counts_astrocytes[, rownames(colData)]
-dim(counts_astrocytes)
-colData <- colData[!is.na(colData$condition), , drop = FALSE]
-nrow(colData)
+  column_to_rownames(var = "samples")  # uredjivanje metapodataka tako da ostanu samo hronicno aktivne lezije i periplakna bela masa
+View(colData)
+colData <- colData[!is.na(colData$condition), ,drop=FALSE] 
+colData$condition <- droplevels(factor(colData$condition))
+#odbacivanje podataka za koje nema nikakvih rezultata upisanih i ocitanih (NA)
+View(colData)
 counts_astrocytes <- counts_astrocytes[, rownames(colData), drop = FALSE]
 dim(counts_astrocytes)
-View(colData)
 View(counts_astrocytes) # dodatna formatiranja i provere matrice astrocita i metapodataka
 
 # III DESeq2
@@ -504,15 +505,18 @@ nrow(dds)
 
 dds <- DESeq(dds)
 resultsNames(dds)
-res_chronic_vs_control <- results(dds, name = "condition_chronic_active_vs_control")
+res_chronic_vs_control <- results(dds, contrast = c("condition", "chronic_active", "control"))
 summary(res_chronic_vs_control)
-
-res_periplaque_vs_control <- results(dds, name = "condition_periplaque_vs_control")
+res_periplaque_vs_control <- results(
+  dds, 
+  contrast = c("condition", "periplaque", "control")
+)
 summary(res_periplaque_vs_control)
 
 res_chronic_sig <- as.data.frame(res_chronic_vs_control) %>%
   filter(!is.na(padj) & padj < 0.05 & abs(log2FoldChange) > 1)
 nrow(res_chronic_sig)
+head(res_chronic_sig[order(res_chronic_sig$padj),],10)
 
 res_periplaque_sig <- as.data.frame(res_periplaque_vs_control) %>%
   filter(!is.na(padj) & padj < 0.05 & abs(log2FoldChange) > 1)
@@ -571,13 +575,65 @@ ggplot(volcano_periplaque, aes(x = log2FoldChange, y = -log10(padj), color = sig
     y = "-log10 adjusted p-value",
     color = "Regulation"
   )
-# pravljenje VolcanoPlotova za vizuelizaciju rezultata
+library(pheatmap)
+
+# Transformacija podataka 
+vsd <- vst(dds, blind = FALSE)
+
+# Filtriranje značajnih gena iz rezultata
+sig_res <- subset(res_periplaque_vs_control, padj < 0.05 & abs(log2FoldChange) > 1)
+sig_ids <- rownames(sig_res)
+
+# Provera da li uopšte ima značajnih gena nakon filtriranja
+length(sig_ids)
+
+#  Izdvajanje ekspresija samo za te gene
+mat <- assay(vsd)[sig_ids, ]
+
+# Crtanje heatmape
+# scale = "row" je ključno jer normalizuje ekspresiju svakog gena posebno 
+# da bi se jasnije videle razlike između uzoraka
+pheatmap(
+  mat, 
+  scale = "row", 
+  show_rownames = FALSE, 
+  cluster_rows = TRUE, 
+  cluster_cols = TRUE,
+  main = "Top DEG-ovi: Periplaque vs Control"
+)
+
+
+# Filtriranje značajnih gena iz rezultata 
+sig_res1 <- subset(res_chronic_vs_control, padj < 0.05 & abs(log2FoldChange) > 1)
+sig_ids1 <- rownames(sig_res1)
+
+# Provera da li uopšte ima značajnih gena nakon filtriranja
+length(sig_ids1)
+
+# Izdvajanje ekspresija samo za te gene
+mat <- assay(vsd)[sig_ids1, ]
+
+#  Crtanje heatmape
+# scale = "row" je ključno jer normalizuje ekspresiju svakog gena posebno 
+# da bi se jasnije videle razlike između uzoraka
+pheatmap(
+  mat, 
+  scale = "row", 
+  show_rownames = FALSE,
+  cluster_rows = TRUE, 
+  cluster_cols = TRUE,
+  main = "Top DEG-ovi: Chronic Active vs Control"
+)
+
+plotPCA(vsd, intgroup = "condition")
+
+# pravljenje VolcanoPlotova za vizuelizaciju rezultata + heatmaps!!!!!!!!!
 
 
 # proba ponovo sa periplaknom i hronicno aktivnom
 coldata_copy <- as.data.frame(colData(dds))
 izbaceni <- coldata_copy[rownames(coldata_copy) %in% c("chronic-active-MS-lesion-edge-13-047", "MS-periplaque-white-matter-13-015", "control-white-matter-11-69", 
-                                                      "control-white-matter-12-002","control-white-matter-14-043"), ]
+                                                       "control-white-matter-12-002","control-white-matter-14-043"), ]
 coldata_copy <- coldata_copy[
   !rownames(coldata_copy) %in% rownames(izbaceni),
 ]
@@ -636,7 +692,9 @@ library(pROC)
 install.packages("pROC")
 
 vsd <- vst(dds, blind = FALSE)
-norm_expr <- assay(vsd)  # matrica: geni x uzorci, normalizovano i log-transformisano
+norm_expr <- assay(vsd) 
+# matrica: geni x uzorci, normalizovano i log-transformisano
+
 
 gene_of_interest <- "U91319.1"
 expr_values <- norm_expr[gene_of_interest, ]
@@ -1035,7 +1093,7 @@ print(head(wnt_contribution1, 20))
 top_contrib1 <- head(wnt_contribution1, 20)
 
 ggplot(top_contrib1, aes(x = reorder(target, contribution), y = contribution, 
-                        fill = contribution > 0)) +
+                         fill = contribution > 0)) +
   geom_col() +
   coord_flip() +
   theme_minimal() +
@@ -1094,4 +1152,3 @@ overlap <- intersect(de_genes, wnt_genes_list)
 overlap
 
 length(overlap)   # how many overlap
-
