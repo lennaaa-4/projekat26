@@ -627,6 +627,37 @@ pheatmap(
 
 plotPCA(vsd, intgroup = "condition")
 
+library(ggplot2)
+library(ggrepel)
+
+vsd$donor <- sub("^.*[-_](\\d+-\\d+)$", "\\1", colnames(vsd))
+table(vsd$donor, vsd$condition)
+
+pca_df <- plotPCA(vsd,
+                  intgroup = c("condition", "donor"),
+                  returnData = TRUE)
+procenat <- round(100 * attr(pca_df, "percentVar"))
+
+ggplot(pca_df, aes(PC1, PC2,
+                   color = donor,
+                   shape = condition)) +
+  geom_point(size = 4) +
+  geom_text_repel(aes(label = donor),
+                  size = 3,
+                  show.legend = FALSE) +
+  labs(x = paste0("PC1: ", procenat[1], "%"),
+       y = paste0("PC2: ", procenat[2], "%"),
+       title = "PCA: boja = donor, oblik = grupa") +
+  theme_bw()
+
+library(matrixStats)
+mat <- assay(vsd)
+top <- order(rowVars(mat), decreasing = TRUE)[1:500]
+pca <- prcomp(t(mat[top, ]))
+pc1 <- sort(pca$rotation[, 1], decreasing = TRUE)
+head(pc1, 25)
+tail(pc1, 25)
+
 # pravljenje VolcanoPlotova za vizuelizaciju rezultata + heatmaps!!!!!!!!!
 
 
@@ -864,6 +895,50 @@ pheatmap(
 
 library(ggplot2)
 
+library(ggplot2)
+install.packages("ggpubr")
+library(ggpubr)
+library(dplyr)
+
+# 1. Prvo izdvoji samo WNT put iz tvoje glavne tabele (pathway_long)
+# *Napomena: Proveri da li se pathway zove tačno "WNT" u tvojoj tabeli ili nekako drugačije (npr. "Wnt_signaling")*
+df_wnt <- pathway_long %>% 
+  filter(pathway == "WNT")
+
+# 2. Definiši parove koje želiš da uporediš
+comparisons <- list(
+  c("control", "chronic_active"),
+  c("control", "periplaque")
+)
+
+# 3. Crtanje boxplot-a korišćenja novog, filtriranog data frame-a (df_wnt)
+ggplot(df_wnt, aes(x = condition, y = activity, fill = condition)) +
+  # Osnovni boxplot (polu-transparentan da se vide tačke)
+  geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+  
+  # Prikaz pojedinačnih uzoraka/tačaka (Jitter sprečava da se tačke preklapaju)
+  geom_jitter(width = 0.15, size = 3, aes(color = condition)) +
+  
+  # Dodavanje zagrada sa p-vrednostima (stavili smo wilcox.test pošto je pogodniji za mali broj uzoraka)
+  stat_compare_means(
+    comparisons = comparisons,
+    method = "wilcox.test",        
+    label = "p.signif"        # Prikazuje zvezdice ("*")
+  ) +
+  
+  # Estetska podešavanja
+  theme_classic() +
+  labs(
+    title = "WNT Signalni Put po Grupama",
+    x = "Grupa",
+    y = "WNT Skor (Activity)"
+  ) +
+  theme(legend.position = "none")
+
+
+
+
+
 pathway_of_interest <- "JAK-STAT"  
 
 pathway_long %>%
@@ -907,19 +982,21 @@ print(colnames(pathway_acts))
 print(unique(pathway_acts$statistic))
 print(unique(pathway_acts$source))
 
-# 3. Izvuci SAMO EGFR aktivnost, samo normalizovanu statistiku
-egfr_acts <- pathway_acts %>%
-  filter(statistic == "norm_wmean", source == "EGFR")
+# 3. Izvuci SAMO WNT aktivnost, samo normalizovanu statistiku
+wnt_acts <- pathway_acts %>%
+  filter(statistic == "norm_wmean", source == "WNT")
 
 # PROVERA 2
-print(egfr_acts)
-nrow(egfr_acts)  # treba da bude = broj uzoraka
+print(wnt_acts)
+nrow(wnt_acts)  # treba da bude = broj uzoraka
 
 # 4. Uskladi redosled uzoraka sa clinical_labels
-egfr_acts <- egfr_acts[match(colnames(expr_matrix), egfr_acts$condition), ]
+wnt_acts <- wnt_acts[match(colnames(expr_matrix), wnt_acts$condition), ]
 
 # PROVERA 3: da li se redosled poklapa
-identical(egfr_acts$condition, colnames(expr_matrix))
+identical(wnt_acts$condition, colnames(expr_matrix))
+
+
 
 # 5. ROC/AUC analiza
 roc_egfr <- roc(response = condition, 
@@ -1133,6 +1210,115 @@ ggplot(top_contrib2, aes(x = reorder(target, contribution), y = contribution,
        subtitle = "Doprinos = PROGENy težina × DE statistika",
        x = "Gen", y = "Doprinos skoru")
 
+# Instalacija potrebnih paketa (ako već nisu instalirani)
+
+BiocManager::install(c("clusterProfiler", "org.Hs.eg.db", "enrichplot"))
+install.packages(c("msigdbr", "dplyr"))
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(msigdbr)
+library(dplyr)
+
+# Ukloni redove sa NA vrednostima u log2FoldChange i sortiraj opadajuće
+de_res <- de_res[!is.na(de_res$log2FoldChange), ]
+de_res <- de_res[order(de_res$log2FoldChange, decreasing = TRUE), ]
+
+# Kreiraj imenovani vektor gde su imena gena (simboli), a vrednosti log2FoldChange
+geneList <- de_res$log2FoldChange
+names(geneList) <- de_res$symbol
+
+# 2. Preuzimanje genskih setova (npr. Hallmark baza, gde se nalazi WNT)
+m_df <- msigdbr(species = "Homo sapiens", category = "H") # Hallmark setovi
+# Ako hoćeš KEGG ili Reactome, možeš promeniti category na "C2" i podkategoriju
+
+term2gene <- m_df %>% dplyr::select(gs_name, gene_symbol)
+
+# Proveri koliko se gena iz tvoje liste uopšte nalazi u bazi
+sum(names(geneList) %in% term2gene$gene_symbol)
+
+# Pogledaj prvih 10 gena u tvojoj listi
+head(names(geneList), 10)
+
+# Pogledaj prvih 10 gena u bazi
+head(term2gene$gene_symbol, 10)
+
+names(geneList) <- rownames(de_res)
+# 3. Pokretanje GSEA analize
+gsea_res <- GSEA(geneList, 
+                 TERM2GENE = term2gene, 
+                 pvalueCutoff = 0.05,
+                 verbose = FALSE)
+
+
+
+# 4. Vizualizacija 1: DOTPLOT za sve značajne puteve
+# Ovo ti daje sjajan pregled kako su svi procesi promenjeni (i aktivirani i inhibirani)
+dotplot(gsea_res, showCategory = 20, split = ".sign") + 
+  facet_grid(.~.sign) +
+  ggtitle("GSEA Pathway Enrichment (Dotplot)")
+
+# 5. Vizualizacija 2: ENRICHMENT PLOT specifično za WNT
+# Pronađi tačan naziv za WNT u Hallmark bazi (obično je "HALLMARK_WNT_BETA_CATENIN_SIGNALING")
+gseaplot(gsea_res, 
+         geneSetID = "HALLMARK_WNT_BETA_CATENIN_SIGNALING", 
+         title = "WNT/beta-catenin Signaling Enrichment Plot",
+         base_size = 11)
+
+BiocManager::install(c("clusterProfiler", "org.Hs.eg.db", "enrichplot"))
+install.packages(c("msigdbr", "dplyr"))
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(enrichplot)
+library(msigdbr)
+library(dplyr)
+
+
+# Ukloni redove sa NA vrednostima u log2FoldChange i sortiraj opadajuće
+de_res1 <- de_res1[!is.na(de_res1$log2FoldChange), ]
+de_res1 <- de_res1[order(de_res1$log2FoldChange, decreasing = TRUE), ]
+
+# Kreiraj imenovani vektor gde su imena gena (simboli), a vrednosti log2FoldChange
+geneList1 <- de_res1$log2FoldChange
+names(geneList1) <- de_res1$symbol
+
+# 2. Preuzimanje genskih setova (npr. Hallmark baza, gde se nalazi WNT)
+m_df1 <- msigdbr(species = "Homo sapiens", category = "H") # Hallmark setovi
+# Ako hoćeš KEGG ili Reactome, možeš promeniti category na "C2" i podkategoriju
+
+term2gene1 <- m_df %>% dplyr::select(gs_name, gene_symbol)
+
+# Proveri koliko se gena iz tvoje liste uopšte nalazi u bazi
+sum(names(geneList1) %in% term2gene1$gene_symbol)
+
+# Pogledaj prvih 10 gena u tvojoj listi
+head(names(geneList1), 10)
+
+# Pogledaj prvih 10 gena u bazi
+head(term2gene1$gene_symbol, 10)
+
+names(geneList1) <- rownames(de_res1)
+# 3. Pokretanje GSEA analize
+gsea_res1 <- GSEA(geneList1, 
+                 TERM2GENE = term2gene1, 
+                 pvalueCutoff = 0.05,
+                 verbose = FALSE)
+
+
+
+# 4. Vizualizacija 1: DOTPLOT za sve značajne puteve
+# Ovo ti daje sjajan pregled kako su svi procesi promenjeni (i aktivirani i inhibirani)
+dotplot(gsea_res1, showCategory = 20, split = ".sign") + 
+  facet_grid(.~.sign) +
+  ggtitle("GSEA Pathway Enrichment (Dotplot1)")
+
+
+# 5. Vizualizacija 2: ENRICHMENT PLOT specifično za WNT
+# Pronađi tačan naziv za WNT u Hallmark bazi (obično je "HALLMARK_WNT_BETA_CATENIN_SIGNALING")
+gseaplot(gsea_res1, 
+         geneSetID = "HALLMARK_WNT_BETA_CATENIN_SIGNALING", 
+         title = "WNT/beta-catenin Signaling Enrichment Plot 1",
+         base_size = 11)
 
 # uporeda gena znacajnih za WNT i dif eksprimiranih
 
@@ -1148,7 +1334,8 @@ str(wnt_de_sig)
 wnt_genes_list <- wnt_genes$target
 
 # Which ones show up in both lists?
-overlap <- intersect(de_genes, wnt_genes_list)
+overlap <- intersect(de_res, wnt_genes_list)
 overlap
 
 length(overlap)   # how many overlap
+
